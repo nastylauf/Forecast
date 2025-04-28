@@ -1,0 +1,186 @@
+package views
+
+import "fmt"
+import "time"
+
+templ Base() {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<link href="/static/styles.css" rel="stylesheet" type="text/css"/>
+			<title>Forecast</title>
+		</head>
+		<body>
+			{ children... }
+		</body>
+	</html>
+}
+
+templ Index(data []Forecast) {
+	@Base() {
+		@Navbar()
+		<div class="hero bg-base-200 min-h-screen">
+			<div class="hero-content">
+				<div class="max-w-2xl">
+					<br/>
+					<br/>
+					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 justify-around">
+						for _, v := range data {
+							@WeatherCard(v) {
+								@CurrentTemp(v)
+								@TempMinMax(v)
+								@Daily(v.Daily, v.Offset)
+							}
+						}
+					</div>
+				</div>
+			</div>
+		</div>
+		<script>
+        document.getElementById('searchInput').addEventListener('input', function() {
+            const searchText = this.value.toLowerCase();
+            const allElements = document.querySelectorAll('[id]:not(#searchInput)');
+            
+            allElements.forEach(element => {
+                if (element.id.toLowerCase().startsWith(searchText)) {
+                    element.classList.remove('hidden');
+                } else {
+                    element.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+	}
+}
+
+templ Daily(d DailyForecast, offset int64) {
+	<div class="flex flex-row gap-1 flex-wrap">
+		for k, v := range d.Time {
+			@Day(v, d.WeatherCode[k], d.TempMax[k], d.TempMin[k], offset)
+		}
+	</div>
+}
+
+templ Day(t int64, code int64, max float64, min float64, offset int64) {
+	<div class="tooltip">
+		<div class="tooltip-content flex flex-col">
+			<p class="font-semibold">{ fmt.Sprintf("Max: %v", max) }</p>
+			<p class="font-semibold">{ fmt.Sprintf("Min: %v", min) }</p>
+		</div>
+		<div class="indicator">
+			<span class="indicator-item text-sm">{ getWeatherEmoji(code) }</span>
+			<button class="btn btn-sm btn-square">{ fmt.Sprint(time.Unix(t, 0).Add(time.Duration(offset)).Day()) }</button>
+		</div>
+	</div>
+}
+
+templ WeatherCard(v Forecast) {
+	<div id={ v.City } class="card bg-base-100 max-w-2xl w-full shadow-xl z-0">
+		<div class="card-body p-6 flex flex-col gap-2">
+			<h2 class="card-title font-black">
+				{ v.City }
+			</h2>
+			<div class="flex flex-col gap-2">
+				{ children... }
+			</div>
+		</div>
+	</div>
+}
+
+templ Navbar() {
+	<div class="navbar bg-base-100 shadow-sm fixed top-0 left-0 w-full z-50 ">
+		<div class="flex-1">
+			<a class="btn btn-ghost text-2xl font-black">Forecast</a>
+		</div>
+		<div class="flex gap-2 font-black">
+			<input type="text" placeholder="Найти город" id="searchInput" class="input input-bordered w-24 md:w-auto"/>
+		</div>
+	</div>
+}
+
+templ CurrentTemp(v Forecast) {
+	<div class="inline-flex gap-2">
+		<p class="font-semibold">Current Temperature:</p>
+		<div class="badge badge-primary">
+			{ fmt.Sprintf("%v", v.Current.Temperature) }
+		</div>
+	</div>
+}
+
+templ TempMinMax(v Forecast) {
+	<div class="grid grid-rows-2 gap-2 items-center">
+		<div class="flex items-center gap-2 mt-2">
+			<p class="font-semibold">Min:</p>
+			<div class="badge badge-primary">
+				{ fmt.Sprintf("%v", v.Daily.TempMin[0]) }
+			</div>
+		</div>
+		<div class="flex items-center gap-1 mt-2">
+			<p class="font-semibold">Max:</p>
+			<div class="badge badge-primary">
+				{ fmt.Sprintf("%v", v.Daily.TempMax[0]) }
+			</div>
+		</div>
+	</div>
+}
+
+type Forecast struct {
+	Latitude  float64         `json:"latitude"`
+	Longitude float64         `json:"longitude"`
+	Offset    int64           `json:"utc_offset_seconds"`
+	Current   CurrentForecast `json:"current"`
+	Daily     DailyForecast   `json:"daily"`
+	City      string          `json:"_"`
+}
+
+type CurrentForecast struct {
+	Temperature float32 `json:"temperature_2m"`
+	WeatherCode int     `json:"weather_code"`
+}
+
+type DailyForecast struct {
+	Time        []int64   `json:"time"`
+	WeatherCode []int64   `json:"weather_code"`
+	TempMax     []float64 `json:"temperature_2m_max"`
+	TempMin     []float64 `json:"temperature_2m_min"`
+}
+
+type Coord struct {
+	Lat float64
+	Lon float64
+}
+
+func getWeatherEmoji(code int64) string {
+	switch {
+	case code == 0:
+		return "☀️" // Clear sky
+	case code >= 1 && code <= 3:
+		return "⛅" // Mainly clear, partly cloudy, and overcast
+	case code == 45 || code == 48:
+		return "🌫️" // Fog and depositing rime fog
+	case code >= 51 && code <= 55:
+		return "🌧️" // Drizzle
+	case code == 56 || code == 57:
+		return "❄️" // Freezing Drizzle
+	case code >= 61 && code <= 65:
+		return "🌧️" // Rain
+	case code == 66 || code == 67:
+		return "❄️" // Freezing Rain
+	case code >= 71 && code <= 75:
+		return "❄️" // Snow fall
+	case code == 77:
+		return "🌨️" // Snow grains
+	case code >= 80 && code <= 82:
+		return "🌦️" // Rain showers
+	case code == 85 || code == 86:
+		return "🌨️" // Snow showers
+	case code == 95:
+		return "⛈️" // Thunderstorm
+	case code == 96 || code == 99:
+		return "⛈️" // Thunderstorm with hail
+	default:
+		return "❓" // Unknown weather code
+	}
+}
