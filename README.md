@@ -7,25 +7,25 @@ Cool project
 
 ### run
 
-Just run the project
+Run the app
 
 ```bash
 go run main.go
-```
-
-### gen
-
-Generate templ and css
-
-```bash
-templ generate
-npx tailwindcss -i styles.css -o static/styles.css
 ```
 
 ### dev
 
 ```bash
 templ generate
-npx tailwindcss -i styles.css -o static/styles.css
+npx tailwindcss -i styles.css -o static/styles.css --minify
 go run main.go
+```
+
+### dev-gen
+
+Generate templ and css
+
+```bash
+templ generate
+npx tailwindcss -i styles.css -o static/styles.css
 ```
